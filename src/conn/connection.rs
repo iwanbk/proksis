@@ -1,9 +1,10 @@
-use crate::frame::{self, Frame};
+use std::io::{self, Cursor};
 
 use bytes::{Buf, BytesMut};
-use std::io::{self, Cursor};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
-use tokio::net::TcpStream;
+use pingora::protocols::Stream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+use crate::conn::frame::{self, Frame};
 
 /// Send and receive `Frame` values from a remote peer.
 ///
@@ -22,7 +23,7 @@ pub struct Connection {
     // The `TcpStream`. It is decorated with a `BufWriter`, which provides write
     // level buffering. The `BufWriter` implementation provided by Tokio is
     // sufficient for our needs.
-    stream: BufWriter<TcpStream>,
+    stream: Stream,
 
     // The buffer for reading frames.
     buffer: BytesMut,
@@ -31,9 +32,9 @@ pub struct Connection {
 impl Connection {
     /// Create a new `Connection`, backed by `socket`. Read and write buffers
     /// are initialized.
-    pub fn new(socket: TcpStream) -> Connection {
+    pub fn new(stream: Stream) -> Connection {
         Connection {
-            stream: BufWriter::new(socket),
+            stream: stream,
             // Default to a 4KB read buffer. For the use case of mini redis,
             // this is fine. However, real applications will want to tune this
             // value to their specific use case. There is a high likelihood that
@@ -53,7 +54,7 @@ impl Connection {
     /// On success, the received frame is returned. If the `TcpStream`
     /// is closed in a way that doesn't break a frame in half, it returns
     /// `None`. Otherwise, an error is returned.
-    pub async fn read_frame(&mut self) -> crate::Result<Option<Frame>> {
+    pub async fn read_frame(&mut self) -> crate::conn::Result<Option<Frame>> {
         loop {
             // Attempt to parse a frame from the buffered data. If enough data
             // has been buffered, the frame is returned.
@@ -84,7 +85,7 @@ impl Connection {
     /// data, the frame is returned and the data removed from the buffer. If not
     /// enough data has been buffered yet, `Ok(None)` is returned. If the
     /// buffered data does not represent a valid frame, `Err` is returned.
-    fn parse_frame(&mut self) -> crate::Result<Option<Frame>> {
+    fn parse_frame(&mut self) -> crate::conn::Result<Option<Frame>> {
         use frame::Error::Incomplete;
 
         // Cursor is used to track the "current" location in the

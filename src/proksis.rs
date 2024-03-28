@@ -5,7 +5,10 @@ use pingora::apps::ServerApp;
 use pingora::protocols::Stream;
 use pingora::server::ShutdownWatch;
 use pingora::services::listening::Service;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+use crate::cmd::Command;
+use crate::conn::connection;
+use crate::conn::frame::Frame;
 
 #[derive(Clone)]
 pub struct Proksis;
@@ -20,18 +23,42 @@ impl Proksis {
 impl ServerApp for Proksis {
     async fn process_new(
         self: &Arc<Self>,
-        mut io: Stream,
+        mut stream: Stream,
         _shutdown: &ShutdownWatch,
     ) -> Option<Stream> {
-        let mut buf = [0; 1024];
+        /*let mut buf = [0; 1024];
         loop {
-            let n = io.read(&mut buf).await.unwrap();
+            let n = stream.read(&mut buf).await.unwrap();
             if n == 0 {
                 println!("session closing");
                 return None;
             }
-            io.write_all(&buf[0..n]).await.unwrap();
-            io.flush().await.unwrap();
+            stream.write_all(&buf[0..n]).await.unwrap();
+            stream.flush().await.unwrap();
+        }*/
+        let mut conn = connection::Connection::new(stream);
+        loop {
+            let frame = match conn.read_frame().await {
+                Ok(ok_frame) => match ok_frame {
+                    Some(frame) => frame,
+                    None => return None,
+                }
+                Err(_) => return None,
+            };
+
+            let resp = match Command::from_frame(frame).unwrap() {
+                Command::Set(_) => {
+                    //let val_str = std::str::from_utf8(&cmd.value()).unwrap();
+                    //self.set(cmd.key(), val_str).await
+                    Frame::Error("ok".to_string())
+                }
+                Command::Get(_) => {
+                    //self.get(cmd.key().to_string()).await
+                    Frame::Error("ok".to_string())
+                }
+                cmd => panic!("unimplemented command {:?}", cmd),
+            };
+            conn.write_frame(&resp).await.unwrap();
         }
     }
 }

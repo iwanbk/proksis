@@ -1,9 +1,9 @@
-use crate::cmd::{Parse, ParseError};
-use crate::{Connection, Db, Frame};
+use std::time::Duration;
 
 use bytes::Bytes;
-use std::time::Duration;
-use tracing::{debug, instrument};
+
+use crate::conn::{parse::Parse, parse::ParseError};
+use crate::conn::frame::Frame;
 
 /// Set `key` to hold the string `value`.
 ///
@@ -77,7 +77,7 @@ impl Set {
     /// ```text
     /// SET key value [EX seconds|PX milliseconds]
     /// ```
-    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Set> {
+    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::conn::Result<Set> {
         use ParseError::EndOfStream;
 
         // Read the key to set. This is a required field
@@ -124,8 +124,8 @@ impl Set {
     ///
     /// The response is written to `dst`. This is called by the server in order
     /// to execute a received command.
-    #[instrument(skip(self, db, dst))]
-    pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
+    /*#[instrument(skip(self, db, dst))]
+    pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::conn::Result<()> {
         // Set the value in the shared database state.
         db.set(self.key, self.value, self.expire);
 
@@ -135,7 +135,7 @@ impl Set {
         dst.write_frame(&response).await?;
 
         Ok(())
-    }
+    }*/
 
     /// Converts the command into an equivalent `Frame`.
     ///

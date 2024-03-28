@@ -1,7 +1,6 @@
-use crate::{Connection, Db, Frame, Parse};
-
 use bytes::Bytes;
-use tracing::{debug, instrument};
+
+use crate::conn::{frame::Frame, parse::Parse};
 
 /// Get the value of key.
 ///
@@ -47,7 +46,7 @@ impl Get {
     /// ```text
     /// GET key
     /// ```
-    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Get> {
+    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::conn::Result<Get> {
         // The `GET` string has already been consumed. The next value is the
         // name of the key to get. If the next value is not a string or the
         // input is fully consumed, then an error is returned.
@@ -60,8 +59,8 @@ impl Get {
     ///
     /// The response is written to `dst`. This is called by the server in order
     /// to execute a received command.
-    #[instrument(skip(self, db, dst))]
-    pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::Result<()> {
+    /*#[instrument(skip(self, db, dst))]
+    pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::conn::Result<()> {
         // Get the value from the shared database state
         let response = if let Some(value) = db.get(&self.key) {
             // If a value is present, it is written to the client in "bulk"
@@ -78,7 +77,7 @@ impl Get {
         dst.write_frame(&response).await?;
 
         Ok(())
-    }
+    }*/
 
     /// Converts the command into an equivalent `Frame`.
     ///

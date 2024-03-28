@@ -1,12 +1,15 @@
 //! Provides a type representing a Redis protocol frame as well as utilities for
 //! parsing frames from a byte array.
 
-use bytes::{Buf, Bytes};
 use std::convert::TryInto;
 use std::fmt;
 use std::io::Cursor;
 use std::num::TryFromIntError;
 use std::string::FromUtf8Error;
+
+use bytes::{Buf, Bytes};
+
+use crate::conn;
 
 /// A frame in the Redis protocol.
 #[derive(Clone, Debug)]
@@ -25,7 +28,7 @@ pub enum Error {
     Incomplete,
 
     /// Invalid message encoding
-    Other(crate::Error),
+    Other(conn::Error),
 }
 
 impl Frame {
@@ -168,7 +171,7 @@ impl Frame {
     }
 
     /// Converts the frame to an "unexpected frame" error
-    pub(crate) fn to_error(&self) -> crate::Error {
+    pub(crate) fn to_error(&self) -> conn::Error {
         format!("unexpected frame: {}", self).into()
     }
 }

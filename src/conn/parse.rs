@@ -1,7 +1,8 @@
-use crate::Frame;
+use std::{fmt, str, vec};
 
 use bytes::Bytes;
-use std::{fmt, str, vec};
+
+use crate::conn::frame::Frame;
 
 /// Utility for parsing a command
 ///
@@ -26,7 +27,7 @@ pub(crate) enum ParseError {
     EndOfStream,
 
     /// All other errors
-    Other(crate::Error),
+    Other(crate::conn::Error),
 }
 
 impl Parse {
@@ -68,7 +69,7 @@ impl Parse {
                 "protocol error; expected simple frame or bulk frame, got {:?}",
                 frame
             )
-            .into()),
+                .into()),
         }
     }
 
@@ -88,7 +89,7 @@ impl Parse {
                 "protocol error; expected simple frame or bulk frame, got {:?}",
                 frame
             )
-            .into()),
+                .into()),
         }
     }
 

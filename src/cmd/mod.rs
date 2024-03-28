@@ -1,22 +1,23 @@
-mod get;
 pub use get::Get;
-
-mod publish;
-pub use publish::Publish;
-
-mod set;
-pub use set::Set;
-
-mod subscribe;
-pub use subscribe::{Subscribe, Unsubscribe};
-
-mod ping;
 pub use ping::Ping;
-
-mod unknown;
+//pub use publish::Publish;
+pub use set::Set;
+//pub use subscribe::{Subscribe, Unsubscribe};
 pub use unknown::Unknown;
 
-use crate::{Connection, Db, Frame, Parse, ParseError, Shutdown};
+use crate::conn::{frame::Frame, parse::Parse};
+
+mod get;
+
+//mod publish;
+
+mod set;
+
+//mod subscribe;
+
+mod ping;
+
+mod unknown;
 
 /// Enumeration of supported Redis commands.
 ///
@@ -24,10 +25,10 @@ use crate::{Connection, Db, Frame, Parse, ParseError, Shutdown};
 #[derive(Debug)]
 pub enum Command {
     Get(Get),
-    Publish(Publish),
+    //Publish(Publish),
     Set(Set),
-    Subscribe(Subscribe),
-    Unsubscribe(Unsubscribe),
+    //Subscribe(Subscribe),
+    //Unsubscribe(Unsubscribe),
     Ping(Ping),
     Unknown(Unknown),
 }
@@ -41,7 +42,7 @@ impl Command {
     /// # Returns
     ///
     /// On success, the command value is returned, otherwise, `Err` is returned.
-    pub fn from_frame(frame: Frame) -> crate::Result<Command> {
+    pub fn from_frame(frame: Frame) -> crate::conn::Result<Command> {
         // The frame value is decorated with `Parse`. `Parse` provides a
         // "cursor" like API which makes parsing the command easier.
         //
@@ -58,10 +59,10 @@ impl Command {
         // specific command.
         let command = match &command_name[..] {
             "get" => Command::Get(Get::parse_frames(&mut parse)?),
-            "publish" => Command::Publish(Publish::parse_frames(&mut parse)?),
+            //"publish" => Command::Publish(Publish::parse_frames(&mut parse)?),
             "set" => Command::Set(Set::parse_frames(&mut parse)?),
-            "subscribe" => Command::Subscribe(Subscribe::parse_frames(&mut parse)?),
-            "unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frames(&mut parse)?),
+            //"subscribe" => Command::Subscribe(Subscribe::parse_frames(&mut parse)?),
+            //"unsubscribe" => Command::Unsubscribe(Unsubscribe::parse_frames(&mut parse)?),
             "ping" => Command::Ping(Ping::parse_frames(&mut parse)?),
             _ => {
                 // The command is not recognized and an Unknown command is
@@ -87,12 +88,12 @@ impl Command {
     ///
     /// The response is written to `dst`. This is called by the server in order
     /// to execute a received command.
-    pub(crate) async fn apply(
+    /*pub(crate) async fn apply(
         self,
         db: &Db,
         dst: &mut Connection,
         shutdown: &mut Shutdown,
-    ) -> crate::Result<()> {
+    ) -> crate::conn::Result<()> {
         use Command::*;
 
         match self {
@@ -106,16 +107,16 @@ impl Command {
             // context of a `Subscribe` command.
             Unsubscribe(_) => Err("`Unsubscribe` is unsupported in this context".into()),
         }
-    }
+    }*/
 
     /// Returns the command name
     pub(crate) fn get_name(&self) -> &str {
         match self {
             Command::Get(_) => "get",
-            Command::Publish(_) => "pub",
+            //Command::Publish(_) => "pub",
             Command::Set(_) => "set",
-            Command::Subscribe(_) => "subscribe",
-            Command::Unsubscribe(_) => "unsubscribe",
+            //Command::Subscribe(_) => "subscribe",
+            //Command::Unsubscribe(_) => "unsubscribe",
             Command::Ping(_) => "ping",
             Command::Unknown(cmd) => cmd.get_name(),
         }
