@@ -119,24 +119,7 @@ impl Set {
 
         Ok(Set { key, value, expire })
     }
-
-    /// Apply the `Set` command to the specified `Db` instance.
-    ///
-    /// The response is written to `dst`. This is called by the server in order
-    /// to execute a received command.
-    /*#[instrument(skip(self, db, dst))]
-    pub(crate) async fn apply(self, db: &Db, dst: &mut Connection) -> crate::conn::Result<()> {
-        // Set the value in the shared database state.
-        db.set(self.key, self.value, self.expire);
-
-        // Create a success response and write it to `dst`.
-        let response = Frame::Simple("OK".to_string());
-        debug!(?response);
-        dst.write_frame(&response).await?;
-
-        Ok(())
-    }*/
-
+    
     /// Converts the command into an equivalent `Frame`.
     ///
     /// This is called by the client when encoding a `Set` command to send to

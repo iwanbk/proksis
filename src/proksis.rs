@@ -7,6 +7,7 @@ use pingora::server::ShutdownWatch;
 use pingora::services::listening::Service;
 use rustis::client::Client;
 use rustis::commands::StringCommands;
+use tracing::error;
 
 use crate::cmd::Command;
 use crate::conn::connection;
@@ -25,14 +26,14 @@ impl Proksis {
 impl ServerApp for Proksis {
     async fn process_new(
         self: &Arc<Self>,
-        mut stream: Stream,
+        stream: Stream,
         _shutdown: &ShutdownWatch,
     ) -> Option<Stream> {
         let mut conn = connection::Connection::new(stream);
         let client = match Client::connect("redis+cluster://127.0.0.1:7001").await {
             Ok(client) => client,
             Err(err) => {
-                println!("error connect: {err}");
+                error!("error connect: {err}");
                 return None;
             }
         };
@@ -60,7 +61,7 @@ impl ServerApp for Proksis {
                         Err(err) => Frame::Error(err.to_string()),
                     }
                 }
-                cmd => Frame::Error("not supported".to_string()),
+                _ => Frame::Error("not supported".to_string()),
             };
             conn.write_frame(&resp).await.unwrap();
         }

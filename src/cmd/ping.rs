@@ -1,7 +1,6 @@
 use bytes::Bytes;
-use tracing::{debug, instrument};
 
-use crate::conn::{connection::Connection, frame::Frame, parse::Parse, parse::ParseError};
+use crate::conn::{frame::Frame, parse::Parse, parse::ParseError};
 
 /// Returns PONG if no argument is provided, otherwise
 /// return a copy of the argument as a bulk.
@@ -46,25 +45,6 @@ impl Ping {
             Err(ParseError::EndOfStream) => Ok(Ping::default()),
             Err(e) => Err(e.into()),
         }
-    }
-
-    /// Apply the `Ping` command and return the message.
-    ///
-    /// The response is written to `dst`. This is called by the server in order
-    /// to execute a received command.
-    #[instrument(skip(self, dst))]
-    pub(crate) async fn apply(self, dst: &mut Connection) -> crate::conn::Result<()> {
-        let response = match self.msg {
-            None => Frame::Simple("PONG".to_string()),
-            Some(msg) => Frame::Bulk(msg),
-        };
-
-        debug!(?response);
-
-        // Write the response back to the client
-        dst.write_frame(&response).await?;
-
-        Ok(())
     }
 
     /// Converts the command into an equivalent `Frame`.

@@ -1,7 +1,3 @@
-use tracing::{debug, instrument};
-
-use crate::conn::{connection::Connection, frame::Frame};
-
 /// Represents an "unknown" command. This is not a real `Redis` command.
 #[derive(Debug)]
 pub struct Unknown {
@@ -18,20 +14,7 @@ impl Unknown {
     }
 
     /// Returns the command name
-    pub(crate) fn get_name(&self) -> &str {
+    pub fn get_name(&self) -> &str {
         &self.command_name
-    }
-
-    /// Responds to the client, indicating the command is not recognized.
-    ///
-    /// This usually means the command is not yet implemented by `mini-redis`.
-    #[instrument(skip(self, dst))]
-    pub(crate) async fn apply(self, dst: &mut Connection) -> crate::conn::Result<()> {
-        let response = Frame::Error(format!("ERR unknown command '{}'", self.command_name));
-
-        debug!(?response);
-
-        dst.write_frame(&response).await?;
-        Ok(())
     }
 }

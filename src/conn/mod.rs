@@ -2,11 +2,6 @@ pub mod connection;
 pub mod frame;
 pub mod parse;
 
-/// Default port that a redis server listens on.
-///
-/// Used if no port is specified.
-pub const DEFAULT_PORT: u16 = 6379;
-
 /// Error returned by most functions.
 ///
 /// When writing a real application, one might want to consider a specialized
