@@ -5,6 +5,8 @@ use pingora::apps::ServerApp;
 use pingora::protocols::Stream;
 use pingora::server::ShutdownWatch;
 use pingora::services::listening::Service;
+use rustis::client::Client;
+use rustis::commands::StringCommands;
 
 use crate::cmd::Command;
 use crate::conn::connection;
@@ -26,17 +28,14 @@ impl ServerApp for Proksis {
         mut stream: Stream,
         _shutdown: &ShutdownWatch,
     ) -> Option<Stream> {
-        /*let mut buf = [0; 1024];
-        loop {
-            let n = stream.read(&mut buf).await.unwrap();
-            if n == 0 {
-                println!("session closing");
+        let mut conn = connection::Connection::new(stream);
+        let client = match Client::connect("redis+cluster://127.0.0.1:7001").await {
+            Ok(client) => client,
+            Err(err) => {
+                println!("error connect: {err}");
                 return None;
             }
-            stream.write_all(&buf[0..n]).await.unwrap();
-            stream.flush().await.unwrap();
-        }*/
-        let mut conn = connection::Connection::new(stream);
+        };
         loop {
             let frame = match conn.read_frame().await {
                 Ok(ok_frame) => match ok_frame {
@@ -47,16 +46,21 @@ impl ServerApp for Proksis {
             };
 
             let resp = match Command::from_frame(frame).unwrap() {
-                Command::Set(_) => {
-                    //let val_str = std::str::from_utf8(&cmd.value()).unwrap();
-                    //self.set(cmd.key(), val_str).await
-                    Frame::Error("ok".to_string())
+                Command::Set(cmd) => {
+                    let val_str = std::str::from_utf8(&cmd.value()).unwrap();
+                    match client.set(cmd.key(), val_str).await {
+                        Ok(_) => Frame::Simple("OK".to_string()),
+                        Err(err) => Frame::Error(err.to_string()),
+                    }
                 }
-                Command::Get(_) => {
+                Command::Get(cmd) => {
                     //self.get(cmd.key().to_string()).await
-                    Frame::Error("ok".to_string())
+                    match client.get(cmd.key()).await {
+                        Ok(val) => Frame::Simple(val),
+                        Err(err) => Frame::Error(err.to_string()),
+                    }
                 }
-                cmd => panic!("unimplemented command {:?}", cmd),
+                cmd => Frame::Error("not supported".to_string()),
             };
             conn.write_frame(&resp).await.unwrap();
         }
