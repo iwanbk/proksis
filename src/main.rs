@@ -1,10 +1,10 @@
-use pingora::prelude::Opt;
-use structopt::StructOpt;
+use tokio::net::TcpListener;
 
 use proksis::server;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("Hello, world!");
-    let opt = Some(Opt::from_args());
-    server::run(opt);
+    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
+    server::run(listener).await;
 }

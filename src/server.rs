@@ -1,20 +1,9 @@
-use pingora::server::configuration::Opt;
-use pingora::server::Server;
-use pingora::services::Service;
+use tokio::net::TcpListener;
 
-use crate::proksis::proksis_service;
+use crate::proksis;
 
-pub fn run(opt: Option<Opt>) {
-    let mut server = Server::new(opt).unwrap();
-    server.bootstrap();
+pub async fn run(listener: TcpListener) {
+    let p = proksis::Proksis::new(listener);
 
-    let mut proksis_service = proksis_service();
-    proksis_service.add_tcp("127.0.0.1:6379");
-
-    let services: Vec<Box<dyn Service>> = vec![
-        Box::new(proksis_service),
-    ];
-
-    server.add_services(services);
-    server.run_forever();
+    p.run().await;
 }

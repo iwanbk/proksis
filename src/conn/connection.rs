@@ -1,8 +1,8 @@
 use std::io::{self, Cursor};
 
 use bytes::{Buf, BytesMut};
-use pingora::protocols::Stream;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use tokio::net::TcpStream;
 
 use crate::conn::frame::{self, Frame};
 
@@ -23,7 +23,7 @@ pub struct Connection {
     // The `TcpStream`. It is decorated with a `BufWriter`, which provides write
     // level buffering. The `BufWriter` implementation provided by Tokio is
     // sufficient for our needs.
-    stream: Stream,
+    stream: BufWriter<TcpStream>,
 
     // The buffer for reading frames.
     buffer: BytesMut,
@@ -32,9 +32,9 @@ pub struct Connection {
 impl Connection {
     /// Create a new `Connection`, backed by `socket`. Read and write buffers
     /// are initialized.
-    pub fn new(stream: Stream) -> Connection {
+    pub fn new(socket: TcpStream) -> Connection {
         Connection {
-            stream: stream,
+            stream: BufWriter::new(socket),
             // Default to a 4KB read buffer. For the use case of mini redis,
             // this is fine. However, real applications will want to tune this
             // value to their specific use case. There is a high likelihood that
