@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use rustis::bb8::{Pool, PooledConnection};
-use rustis::client::{Client, PooledClientManager};
+use bytes::Bytes;
+use rustis::bb8::Pool;
+use rustis::client::PooledClientManager;
 use rustis::commands::StringCommands;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{self, Duration};
-use tracing::error;
+use tracing::{error, info};
 
 use crate::cmd::Command;
 use crate::conn::connection;
@@ -77,16 +78,31 @@ impl Handler {
         let client = self.pool.get().await?;
         let mut conn = connection::Connection::new(socket);
 
+
         loop {
+            // read frame
             let frame = match conn.read_frame().await {
                 Ok(ok_frame) => match ok_frame {
                     Some(frame) => frame,
-                    None => return Ok(()),
+                    None => return Ok(()), // TODO: handle properly
                 }
-                Err(_) => return Ok(()),
+                Err(_) => return Ok(()), // TODO: handle properly
             };
 
-            let resp = match Command::from_frame(frame).unwrap() {
+            // parse the frame
+            let command = match Command::from_frame(frame) {
+                Ok(cmd) => cmd,
+                Err(err) => {
+                    // using unwrap is OK here, because failed sending could mean broken connection.
+                    // better to close the broken connection
+                    conn.write_frame(&Frame::Error("invalid command".to_string())).await.unwrap();
+                    info!("invalid command {err}");
+                    continue;
+                }
+            };
+
+            // handle command
+            let resp = match command {
                 Command::Set(cmd) => {
                     let val_str = std::str::from_utf8(&cmd.value()).unwrap();
                     match client.set(cmd.key(), val_str).await {
@@ -95,14 +111,19 @@ impl Handler {
                     }
                 }
                 Command::Get(cmd) => {
-                    //self.get(cmd.key().to_string()).await
-                    match client.get(cmd.key()).await {
-                        Ok(val) => Frame::Simple(val),
+                    let val: rustis::Result<Option<String>> = client.get(cmd.key()).await;
+                    match val {
+                        Ok(val) => match val {
+                            Some(val) => Frame::Bulk(Bytes::from(val)),
+                            None => Frame::Null
+                        }
                         Err(err) => Frame::Error(err.to_string()),
                     }
                 }
                 _ => Frame::Error("not supported".to_string()),
             };
+            // using unwrap is OK here, because failed sending could mean broken connection.
+            // better to close the broken connection
             conn.write_frame(&resp).await.unwrap();
         }
     }
