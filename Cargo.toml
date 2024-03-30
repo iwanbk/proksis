@@ -14,6 +14,6 @@ atoi = "1.0.0"
 tracing = "0.1.40"
 tokio-stream = "0.1.15"
 async-stream = "0.3.5"
-rustis = "0.12.9"
+rustis = { version = "0.12.9", features = ["pool"] }
 time = "0.3.34"
 anyhow = "1.0.81"

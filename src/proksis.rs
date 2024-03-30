@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use rustis::client::Client;
+use rustis::bb8::{Pool, PooledConnection};
+use rustis::client::{Client, PooledClientManager};
 use rustis::commands::StringCommands;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{self, Duration};
@@ -12,12 +13,14 @@ use crate::conn::frame::Frame;
 
 pub struct Proksis {
     listener: TcpListener,
+    pool: Arc<Pool<PooledClientManager>>,
 }
 
 impl Proksis {
-    pub fn new(listener: TcpListener) -> Arc<Self> {
+    pub fn new(listener: TcpListener, pool: rustis::bb8::Pool<PooledClientManager>) -> Arc<Self> {
         Arc::new(Proksis {
             listener,
+            pool: Arc::new(pool),
         })
     }
 }
@@ -26,7 +29,9 @@ impl Proksis {
     pub async fn run(&self) -> Result<(), anyhow::Error> {
         loop {
             let socket = self.accept(&self.listener).await?;
-            let mut h = Handler {};
+            let mut h = Handler {
+                pool: self.pool.clone(),
+            };
 
             tokio::spawn(async move {
                 if let Err(err) = h.handle(socket).await {
@@ -59,64 +64,19 @@ impl Proksis {
             backoff *= 2;
         }
     }
-    /*async fn process_new(
-        self: &Arc<Self>,
-        stream: Stream,
-        _shutdown: &ShutdownWatch,
-    ) -> Option<Stream> {
-        let mut conn = connection::Connection::new(stream);
-        let client = match Client::connect("redis+cluster://127.0.0.1:7001").await {
-            Ok(client) => client,
-            Err(err) => {
-                error!("error connect: {err}");
-                return None;
-            }
-        };
-        loop {
-            let frame = match conn.read_frame().await {
-                Ok(ok_frame) => match ok_frame {
-                    Some(frame) => frame,
-                    None => return None,
-                }
-                Err(_) => return None,
-            };
-
-            let resp = match Command::from_frame(frame).unwrap() {
-                Command::Set(cmd) => {
-                    let val_str = std::str::from_utf8(&cmd.value()).unwrap();
-                    match client.set(cmd.key(), val_str).await {
-                        Ok(_) => Frame::Simple("OK".to_string()),
-                        Err(err) => Frame::Error(err.to_string()),
-                    }
-                }
-                Command::Get(cmd) => {
-                    //self.get(cmd.key().to_string()).await
-                    match client.get(cmd.key()).await {
-                        Ok(val) => Frame::Simple(val),
-                        Err(err) => Frame::Error(err.to_string()),
-                    }
-                }
-                _ => Frame::Error("not supported".to_string()),
-            };
-            conn.write_frame(&resp).await.unwrap();
-        }
-    }*/
 }
 
-#[derive(Debug)]
-struct Handler {}
+
+struct Handler {
+    pool: Arc<Pool<PooledClientManager>>,
+}
 
 impl Handler {
     //#[instrument(skip(self))]
     async fn handle(&mut self, socket: TcpStream) -> Result<(), anyhow::Error> {
+        let client = self.pool.get().await?;
         let mut conn = connection::Connection::new(socket);
-        let client = match Client::connect("redis+cluster://127.0.0.1:7001").await {
-            Ok(client) => client,
-            Err(err) => {
-                error!("error connect: {err}");
-                return Ok(());
-            }
-        };
+
         loop {
             let frame = match conn.read_frame().await {
                 Ok(ok_frame) => match ok_frame {
