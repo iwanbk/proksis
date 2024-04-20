@@ -4,6 +4,7 @@ use bytes::Bytes;
 use rustis::bb8::Pool;
 use rustis::client::PooledClientManager;
 use rustis::commands::StringCommands;
+use tokio::io::BufReader;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{self, Duration};
 use tracing::{error, info};
@@ -11,6 +12,7 @@ use tracing::{error, info};
 use crate::cmd::Command;
 use crate::conn::connection;
 use crate::conn::frame::Frame;
+use crate::miniresp::conn;
 
 pub struct Proksis {
     listener: TcpListener,
@@ -73,6 +75,14 @@ struct Handler {
 }
 
 impl Handler {
+    async fn handle2(&mut self, socket: TcpStream) -> Result<(), anyhow::Error> {
+        let mut conn = conn::Conn::new(BufReader::new(socket));
+        let cmd = conn.read_command().await.unwrap();
+        let name = cmd.name;
+        let key = cmd.key;
+        info!("command: {name} {key}");
+        Ok(())
+    }
     //#[instrument(skip(self))]
     async fn handle(&mut self, socket: TcpStream) -> Result<(), anyhow::Error> {
         let client = self.pool.get().await?;
